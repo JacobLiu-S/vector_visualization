@@ -1,12 +1,14 @@
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.basemap import Basemap
 from scipy.spatial.transform import Rotation as R
 from scipy.stats import gaussian_kde
 from tqdm import tqdm
 from matplotlib.colors import LogNorm
 
 from density_calcuate import density_function, plot_density
+from density_map_2d_version import density_function_2d
 
 
 def normalize_vector(vector):
@@ -118,7 +120,7 @@ def main():
 
     # vectors = [[3, 4, 1], [1, 2, 2], [5, 5, 5]]  # List of vectors
     # densities = calculate_density(vectors)  # List of corresponding densities
-    bandwidth = 0.1
+    bandwidth = 0.04
     density_func = density_function(vectors, bandwidth, True)
     
     # print(densities)
@@ -131,21 +133,38 @@ def main():
 
     densities = density_func(x.flatten(), y.flatten(), z.flatten())
     print('densities calculated')
-    # plot_density(densities, resolution, x, y, z)
+    plot_density(densities, resolution, x, y, z)
 
-    # plot_normalized_vectors(vectors, densities)
+    # map density to 2d
+    density_func_2d = density_function_2d(vectors, bandwidth)
 
-    # sphere_points = np.array(vectors)
-    # print(x.shape)
-    sphere_points = np.zeros((10000, 3))
-    sphere_points[:, 0], sphere_points[:, 1], sphere_points[:, 2] = x.flatten(), y.flatten(), z.flatten()
-    print(densities.shape)
-    density_map = sphere_to_rectangular(sphere_points, densities, resolution)
+    # Define the map projection
+    map = Basemap(projection='robin', lon_0=0, resolution='c')
 
-    # Plot the rectangular density map
-    plt.imshow(density_map, cmap='viridis')
-    plt.colorbar()
-    # plt.savefig('examples/density_map.png')
+    # Disable drawing country boundaries
+    map.drawcountries(linewidth=0)
+
+    # Generate a grid of longitude and latitude coordinates
+    resolution = 100
+    lon = np.linspace(-180, 180, resolution)
+    lat = np.linspace(-90, 90, resolution)
+    lon_grid, lat_grid = np.meshgrid(lon, lat)
+
+    # Evaluate the density function on the grid of coordinates
+    density_values_2d = density_func_2d(lon_grid.flatten(), lat_grid.flatten())
+
+    # Reshape the density values to match the grid shape
+    density_grid = density_values_2d.reshape((resolution, resolution))
+
+    # Convert longitude and latitude to map projection coordinates
+    x, y = map(lon_grid, lat_grid)
+
+    # Plot the density on the map
+    plt.figure(figsize=(12, 6))
+    map.contourf(x, y, density_grid, cmap='viridis')
+    map.colorbar(label='Density')
+
+    plt.title('Point Density on a Map')
     plt.show()
 
 if __name__ == '__main__':
