@@ -1,3 +1,4 @@
+import os
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
@@ -36,34 +37,12 @@ def calculate_density(points, save=False):
 
     return density
 
-def plot_normalized_vectors(vectors, densities):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    # fig, ax = plt.subplots(figsize = (12, 7), projection='3d')
-
-    normalized_vectors = [normalize_vector(vector) for vector in vectors]
-
-    for vector, density in tqdm(zip(normalized_vectors, densities)):
-        ax.scatter(vector[0], vector[1], vector[2], c=density, cmap='viridis', norm=LogNorm())
-
-    ax.set_xlim([-1, 1])
-    ax.set_ylim([-1, 1])
-    ax.set_zlim([-1, 1])
-    ax.set_box_aspect([1, 1, 1])
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    # Plot x-axis arrow
-    ax.quiver(-1, 0, 0, 1, 0, 0, color='k', arrow_length_ratio=0.1, length=2)
-    # Plot y-axis arrow
-    ax.quiver(0, -1, 0, 0, 1, 0, color='k', arrow_length_ratio=0.1, length=2)
-    # Plot z-axis arrow
-    ax.quiver(0, 0, -1, 0, 0, 1, color='k', arrow_length_ratio=0.1, length=2)
-    
-    ax.axis('on')
-    plt.show()
-    plt.savefig('examples/normalized_vectors.png')
-
+def rule_of_thumb_bandwidth(points):
+    n = len(points)
+    std_dev = np.std(points)
+    iqr = np.percentile(points, 75) - np.percentile(points, 25)
+    bandwidth = 0.9 * min(std_dev, iqr/1.34) * n**(-1/5)
+    return bandwidth
 
 def load_vectors(npzpath, samples=1000):
     npfile = np.load(npzpath, allow_pickle=True)
@@ -71,7 +50,7 @@ def load_vectors(npzpath, samples=1000):
     # for mmhuman3d human data
     smpl_global_orient = npfile['smpl'].item()['global_orient']
 
-    sample_idx = np.random.choice(len(smpl_global_orient), samples)
+    sample_idx = np.random.choice(len(smpl_global_orient), samples, replace=False)
 
     return smpl_global_orient.reshape(-1, 3)[sample_idx]
 
@@ -83,44 +62,18 @@ def rotate_basis(vectors, basis=[0, 0, 1]):
         end_vectors.append(rotmat @ basis)
     return np.vstack(end_vectors).reshape(-1, 3)
 
-def sphere_to_rectangular(sphere_points, densities, resolution):
-    # Convert spherical coordinates to Cartesian coordinates
-    x = np.sin(sphere_points[:, 0]) * np.cos(sphere_points[:, 1])
-    y = np.sin(sphere_points[:, 0]) * np.sin(sphere_points[:, 1])
-    z = np.cos(sphere_points[:, 0])
-
-    # Convert Cartesian coordinates to latitude and longitude
-    lat = np.arcsin(z)
-    lon = np.arctan2(y, x)
-
-    # Normalize longitude values to range [-pi, pi]
-    lon = (lon + np.pi) % (2 * np.pi) - np.pi
-
-    # Convert longitude and latitude to equirectangular projection
-    x_rect = (lon + np.pi) / (2 * np.pi) * resolution
-    y_rect = (lat + np.pi / 2) / np.pi * resolution
-
-    # Create a rectangular grid for the density map
-    density_map = np.zeros((resolution, resolution))
-
-    # Populate the density map with the corresponding densities
-    for i in range(len(densities)):
-        x_idx = int(x_rect[i])
-        y_idx = int(y_rect[i])
-        density_map[y_idx, x_idx] += densities[i]
-
-    return density_map
-
 def main():
     parser = argparse.ArgumentParser(description='npz file path to be analyzed')
     parser.add_argument('--npz_path', help='the npz file to be analysed')
+    parser.add_argument('--samples', default=1000, type=int, help='the number of samples to create the densities')
     args = parser.parse_args()
-    vectors = rotate_basis(load_vectors(args.npz_path))
+    vectors = rotate_basis(load_vectors(args.npz_path, samples=args.samples))
     # visualize_3d_vectors(vectors)
 
     # vectors = [[3, 4, 1], [1, 2, 2], [5, 5, 5]]  # List of vectors
     # densities = calculate_density(vectors)  # List of corresponding densities
-    bandwidth = 0.04
+    bandwidth = rule_of_thumb_bandwidth(vectors)
+    print(f'Your bandwidth is {bandwidth}')
     density_func = density_function(vectors, bandwidth, True)
     
     # print(densities)
@@ -142,7 +95,7 @@ def main():
     map = Basemap(projection='robin', lon_0=0, resolution='c')
 
     # Disable drawing country boundaries
-    map.drawcountries(linewidth=0)
+    # map.drawcountries(linewidth=0)
 
     # Generate a grid of longitude and latitude coordinates
     resolution = 100
@@ -165,7 +118,10 @@ def main():
     map.colorbar(label='Density')
 
     plt.title('Point Density on a Map')
-    plt.show()
+    # plt.show()
+    density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + '_density_2d.png')
+    # plt.draw()
+    plt.savefig(density_2d_map_name, dpi=100)
 
 if __name__ == '__main__':
     main()
