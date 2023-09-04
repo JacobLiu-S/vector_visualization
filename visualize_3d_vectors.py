@@ -13,7 +13,7 @@ def normalize_vector(vector):
         return vector
     return vector / norm
 
-def calculate_density(points):
+def calculate_density(points, save=False):
     # Normalize the points to unit vectors
     normalized_points = [normalize_vector(point) for point in points]
 
@@ -27,7 +27,8 @@ def calculate_density(points):
     density = kde([x, y, z])
 
     # save the density
-    np.save('density.npy', density)
+    if save:
+        np.save('density.npy', density)
 
     return density
 
@@ -60,13 +61,15 @@ def plot_normalized_vectors(vectors, densities):
     plt.savefig('examples/normalized_vectors.png')
 
 
-def load_vectors(npzpath):
+def load_vectors(npzpath, samples=1000):
     npfile = np.load(npzpath, allow_pickle=True)
 
     # for mmhuman3d human data
     smpl_global_orient = npfile['smpl'].item()['global_orient']
 
-    return smpl_global_orient.reshape(-1, 3)
+    sample_idx = np.random.choice(len(smpl_global_orient), samples)
+
+    return smpl_global_orient.reshape(-1, 3)[sample_idx]
 
 def rotate_basis(vectors, basis=[0, 0, 1]):
     end_vectors = []
