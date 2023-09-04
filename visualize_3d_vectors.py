@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
 from scipy.stats import gaussian_kde
 from tqdm import tqdm
+from matplotlib.colors import LogNorm
 
+from density_calcuate import density_function, plot_density
 
 
 def normalize_vector(vector):
@@ -40,7 +42,7 @@ def plot_normalized_vectors(vectors, densities):
     normalized_vectors = [normalize_vector(vector) for vector in vectors]
 
     for vector, density in tqdm(zip(normalized_vectors, densities)):
-        ax.scatter(vector[0], vector[1], vector[2], c=density, cmap='viridis')
+        ax.scatter(vector[0], vector[1], vector[2], c=density, cmap='viridis', norm=LogNorm())
 
     ax.set_xlim([-1, 1])
     ax.set_ylim([-1, 1])
@@ -115,19 +117,35 @@ def main():
     # visualize_3d_vectors(vectors)
 
     # vectors = [[3, 4, 1], [1, 2, 2], [5, 5, 5]]  # List of vectors
-    densities = calculate_density(vectors)  # List of corresponding densities
-    print('densities calculated')
+    # densities = calculate_density(vectors)  # List of corresponding densities
+    bandwidth = 0.1
+    density_func = density_function(vectors, bandwidth, True)
+    
     # print(densities)
-    resolution = 200
+    resolution = 100
+    u = np.linspace(0, 2 * np.pi, resolution)
+    v = np.linspace(0, np.pi, resolution)
+    x = np.outer(np.cos(u), np.sin(v))
+    y = np.outer(np.sin(u), np.sin(v))
+    z = np.outer(np.ones_like(u), np.cos(v))
 
-    plot_normalized_vectors(vectors, densities)
+    densities = density_func(x.flatten(), y.flatten(), z.flatten())
+    print('densities calculated')
+    # plot_density(densities, resolution, x, y, z)
 
-    sphere_points = np.array(vectors)
+    # plot_normalized_vectors(vectors, densities)
+
+    # sphere_points = np.array(vectors)
+    # print(x.shape)
+    sphere_points = np.zeros((10000, 3))
+    sphere_points[:, 0], sphere_points[:, 1], sphere_points[:, 2] = x.flatten(), y.flatten(), z.flatten()
+    print(densities.shape)
     density_map = sphere_to_rectangular(sphere_points, densities, resolution)
 
     # Plot the rectangular density map
     plt.imshow(density_map, cmap='viridis')
     plt.colorbar()
+    # plt.savefig('examples/density_map.png')
     plt.show()
 
 if __name__ == '__main__':
