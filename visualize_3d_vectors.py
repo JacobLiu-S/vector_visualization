@@ -45,6 +45,8 @@ def rule_of_thumb_bandwidth(points):
     return bandwidth
 
 def load_vectors(npzpath, samples=1000):
+    if npzpath.endswith('.npy'):
+        return np.load(npzpath).reshape(-1, 3)
     npfile = np.load(npzpath, allow_pickle=True)
 
     # for mmhuman3d human data
@@ -65,7 +67,7 @@ def rotate_basis(vectors, basis=[0, 0, 1]):
 def main():
     parser = argparse.ArgumentParser(description='npz file path to be analyzed')
     parser.add_argument('--npz_path', help='the npz file to be analysed')
-    parser.add_argument('--samples', default=1000, type=int, help='the number of samples to create the densities')
+    parser.add_argument('--samples', default=10000, type=int, help='the number of samples to create the densities')
     args = parser.parse_args()
     vectors = rotate_basis(load_vectors(args.npz_path, samples=args.samples))
     # visualize_3d_vectors(vectors)
