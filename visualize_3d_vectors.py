@@ -52,6 +52,7 @@ def load_vectors(npzpath, samples=1000):
     # for mmhuman3d human data
     smpl_global_orient = npfile['smpl'].item()['global_orient']
 
+    np.random.seed(0)
     sample_idx = np.random.choice(len(smpl_global_orient), samples, replace=False)
 
     return smpl_global_orient.reshape(-1, 3)[sample_idx]
