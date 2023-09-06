@@ -3,11 +3,21 @@ from scipy.spatial import cKDTree
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
 
-def density_function_2d(points, bandwidth):
+
+def normalize_vector(vector):
+    norm = np.linalg.norm(vector)
+    if norm == 0:
+        return vector
+    return vector / norm
+
+def density_function_2d(points, bandwidth, normalize=False):
+    if normalize:
+        points = [normalize_vector(point) for point in points]
+
     # Create a KDTree from the points for efficient nearest neighbor search
     kdtree = cKDTree(points)
 
-    def density(lon, lat):
+    def density(lon, lat, kde=True):
         # Convert longitude and latitude to radians
         lon_rad = np.radians(lon)
         lat_rad = np.radians(lat)
@@ -24,9 +34,11 @@ def density_function_2d(points, bandwidth):
         distances, _ = kdtree.query(query_points, k=1)
 
         # Calculate the kernel density estimate based on the distances
-        density_values = 1 / (bandwidth * np.sqrt(2 * np.pi)) * np.exp(-0.5 * (distances / bandwidth) ** 2)
-
-        return density_values
+        if kde:
+            density_values = 1 / (bandwidth * np.sqrt(2 * np.pi)) * np.exp(-0.5 * (distances / bandwidth) ** 2)
+            return density_values
+            
+        return distances
 
     return density
 

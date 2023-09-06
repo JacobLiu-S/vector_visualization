@@ -18,7 +18,7 @@ def density_function(points, bandwidth, normalize=False):
     # Create a KDTree from the points for efficient nearest neighbor search
     kdtree = cKDTree(points)
 
-    def density(x, y, z):
+    def density(x, y, z, kde=True):
         # Concatenate x, y, and z coordinates into a single array
         query_points = np.column_stack((x, y, z))
 
@@ -26,9 +26,11 @@ def density_function(points, bandwidth, normalize=False):
         distances, _ = kdtree.query(query_points, k=1)
 
         # Calculate the kernel density estimate based on the distances
-        density_values = 1 / (bandwidth * np.sqrt(2 * np.pi)) * np.exp(-0.5 * (distances / bandwidth) ** 2)
-
-        return density_values
+        if kde:
+            density_values = 1 / (bandwidth * np.sqrt(2 * np.pi)) * np.exp(-0.5 * (distances / bandwidth) ** 2)
+            return density_values
+            
+        return distances
 
     return density
 

@@ -68,6 +68,7 @@ def main():
     parser = argparse.ArgumentParser(description='npz file path to be analyzed')
     parser.add_argument('--npz_path', help='the npz file to be analysed')
     parser.add_argument('--samples', default=10000, type=int, help='the number of samples to create the densities')
+    parser.add_argument('--kde', action='store_false', help='use KDE estimate to draw ')
     args = parser.parse_args()
     vectors = rotate_basis(load_vectors(args.npz_path, samples=args.samples))
     # visualize_3d_vectors(vectors)
@@ -86,12 +87,12 @@ def main():
     y = np.outer(np.sin(u), np.sin(v))
     z = np.outer(np.ones_like(u), np.cos(v))
 
-    densities = density_func(x.flatten(), y.flatten(), z.flatten())
+    densities = density_func(x.flatten(), y.flatten(), z.flatten(), args.kde)
     print('densities calculated')
     plot_density(densities, resolution, x, y, z)
 
     # map density to 2d
-    density_func_2d = density_function_2d(vectors, bandwidth)
+    density_func_2d = density_function_2d(vectors, bandwidth, True)
 
     # Define the map projection
     map = Basemap(projection='robin', lon_0=0, resolution='c')
@@ -106,7 +107,7 @@ def main():
     lon_grid, lat_grid = np.meshgrid(lon, lat)
 
     # Evaluate the density function on the grid of coordinates
-    density_values_2d = density_func_2d(lon_grid.flatten(), lat_grid.flatten())
+    density_values_2d = density_func_2d(lon_grid.flatten(), lat_grid.flatten(), args.kde)
 
     # Reshape the density values to match the grid shape
     density_grid = density_values_2d.reshape((resolution, resolution))
@@ -121,7 +122,7 @@ def main():
 
     plt.title('Point Density on a Map')
     # plt.show()
-    density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + '_density_2d.png')
+    density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_density_2d_kde_{args.kde}.png')
     # plt.draw()
     plt.savefig(density_2d_map_name, dpi=100)
 
