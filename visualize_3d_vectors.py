@@ -8,7 +8,7 @@ from scipy.stats import gaussian_kde
 from tqdm import tqdm
 from matplotlib.colors import LogNorm
 
-from density_calcuate import density_function, plot_density
+from density_calcuate import density_function, plot_density, count_vectors_within_angle
 from density_map_2d_version import density_function_2d
 
 
@@ -83,8 +83,9 @@ def get_cam_in_per(vectors):
 def main():
     parser = argparse.ArgumentParser(description='npz file path to be analyzed')
     parser.add_argument('--npz_path', help='the npz file to be analysed')
-    parser.add_argument('--samples', default=100000, type=int, help='the number of samples to create the densities')
+    parser.add_argument('--samples', default=10000, type=int, help='the number of samples to create the densities')
     parser.add_argument('--kde', action='store_false', help='use KDE estimate to draw ')
+    parser.add_argument('--cam_plot', action='store_true', help='use KDE estimate to draw ')
     args = parser.parse_args()
     vectors = load_vectors(args.npz_path, samples=args.samples)
     print(f'You sampled {vectors.shape[0]} samples')
@@ -93,24 +94,27 @@ def main():
 
     # vectors = [[3, 4, 1], [1, 2, 2], [5, 5, 5]]  # List of vectors
     # densities = calculate_density(vectors)  # List of corresponding densities
-    bandwidth = rule_of_thumb_bandwidth(vectors)
-    print(f'Your bandwidth is {bandwidth}')
-    density_func = density_function(vectors, bandwidth, True)
+    # bandwidth = rule_of_thumb_bandwidth(vectors)
+    # print(f'Your bandwidth is {bandwidth}')
+    # density_func = density_function(vectors, bandwidth, True)
     
     # print(densities)
-    resolution = 100
-    u = np.linspace(0, 2 * np.pi, resolution)
-    v = np.linspace(0, np.pi, resolution)
-    x = np.outer(np.cos(u), np.sin(v))
-    y = np.outer(np.sin(u), np.sin(v))
-    z = np.outer(np.ones_like(u), np.cos(v))
+    # resolution = 100
+    # u = np.linspace(0, 2 * np.pi, resolution)
+    # v = np.linspace(0, np.pi, resolution)
+    # x = np.outer(np.cos(u), np.sin(v))
+    # y = np.outer(np.sin(u), np.sin(v))
+    # z = np.outer(np.ones_like(u), np.cos(v))
 
-    densities = density_func(x.flatten(), y.flatten(), z.flatten(), args.kde)
+    # if args.cam_plot:
+    #     densities = z
+    # densities = density_func(x.flatten(), y.flatten(), z.flatten(), args.kde)
+    # densities = count_vectors_within_angle(vectors, np.column_stack((x.flatten(), y.flatten(), z.flatten())).reshape(resolution*resolution, 3), angle_threshold=1)
     print('densities calculated')
-    plot_density(densities, resolution, x, y, z)
+    # plot_density(densities, resolution, x, y, z)
 
     # map density to 2d
-    density_func_2d = density_function_2d(vectors, bandwidth, True)
+    # density_func_2d = density_function_2d(vectors, bandwidth, True)
 
     # Define the map projection
     map = Basemap(projection='robin', lon_0=0, resolution='c')
@@ -124,8 +128,20 @@ def main():
     lat = np.linspace(-90, 90, resolution)
     lon_grid, lat_grid = np.meshgrid(lon, lat)
 
+    lon_rad = np.radians(lon_grid)
+    lat_rad = np.radians(lat_grid)
+    # Convert longitude, latitude to Cartesian coordinates
+    x = np.cos(lat_rad) * np.cos(lon_rad)
+    y = np.cos(lat_rad) * np.sin(lon_rad)
+    z = np.sin(lat_rad)
+
+    # Concatenate x, y, and z coordinates into a single array
+    query_points = np.column_stack((x.flatten(), y.flatten(), z.flatten()))
+
     # Evaluate the density function on the grid of coordinates
-    density_values_2d = density_func_2d(lon_grid.flatten(), lat_grid.flatten(), args.kde)
+    # density_values_2d = density_func_2d(lon_grid.flatten(), lat_grid.flatten(), args.kde)
+    density_values_2d = count_vectors_within_angle(vectors, query_points.reshape(resolution*resolution, 3), 1)
+    print('densities 2d calculated')
 
     # Reshape the density values to match the grid shape
     density_grid = density_values_2d.reshape((resolution, resolution))
@@ -135,12 +151,14 @@ def main():
 
     # Plot the density on the map
     plt.figure(figsize=(12, 6))
-    map.contourf(x, y, density_grid, cmap='viridis')
-    map.colorbar(label='Density')
+    # map.contourf(x, y, density_grid, cmap='viridis')
+    # map.colorbar(label='Density')
+    colormap = map.pcolormesh(x, y, np.log10(density_grid), cmap='viridis')
+    colorbar = map.colorbar(colormap, location='right', pad='5%', extend='both')
 
-    plt.title(f"Point Density on a Map -- {os.path.basename(args.npz_path).split('.')[0]}_cam_around_per_kde_{args.kde}")
+    plt.title(f"Point Density on a Map -- {os.path.basename(args.npz_path).split('.')[0]}_cam_around_per_grid_cnt")
     # plt.show()
-    density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_cam_around_per_kde_{args.kde}.png')
+    density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_cam_around_per_grid_cnt.png')
     # plt.draw()
     plt.savefig(density_2d_map_name, dpi=100)
 
