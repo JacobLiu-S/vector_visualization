@@ -65,13 +65,30 @@ def rotate_basis(vectors, basis=[0, 0, 1]):
         end_vectors.append(rotmat @ basis)
     return np.vstack(end_vectors).reshape(-1, 3)
 
+def get_cam_in_per(vectors):
+    base_cam_rot = R.from_euler('zyx', [0, 0, 180], degrees=True).as_matrix()
+    per_in_map = R.from_matrix([[0,0,1], [1,0,0], [0,1,0]]).as_matrix()
+    output = []
+    for v in tqdm(vectors):
+        r = R.from_rotvec(v)
+        rotmat = r.as_matrix()
+        cam_in_body = np.linalg.inv(rotmat)
+        cam_w_base = cam_in_body @ base_cam_rot
+        x, y, z = R.from_matrix(cam_w_base).as_euler('yxz', degrees=True)
+        cadi_coor = [np.cos(y)*np.cos(x), np.sin(y), np.cos(y)*np.sin(x)]
+        output.append(np.linalg.inv(per_in_map) @ cadi_coor)
+    return np.vstack(output).reshape(-1, 3), z
+
+
 def main():
     parser = argparse.ArgumentParser(description='npz file path to be analyzed')
     parser.add_argument('--npz_path', help='the npz file to be analysed')
-    parser.add_argument('--samples', default=10000, type=int, help='the number of samples to create the densities')
+    parser.add_argument('--samples', default=100000, type=int, help='the number of samples to create the densities')
     parser.add_argument('--kde', action='store_false', help='use KDE estimate to draw ')
     args = parser.parse_args()
-    vectors = rotate_basis(load_vectors(args.npz_path, samples=args.samples))
+    vectors = load_vectors(args.npz_path, samples=args.samples)
+    print(f'You sampled {vectors.shape[0]} samples')
+    vectors, z = get_cam_in_per(vectors)
     # visualize_3d_vectors(vectors)
 
     # vectors = [[3, 4, 1], [1, 2, 2], [5, 5, 5]]  # List of vectors
@@ -121,9 +138,9 @@ def main():
     map.contourf(x, y, density_grid, cmap='viridis')
     map.colorbar(label='Density')
 
-    plt.title('Point Density on a Map')
+    plt.title(f"Point Density on a Map -- {os.path.basename(args.npz_path).split('.')[0]}_cam_around_per_kde_{args.kde}")
     # plt.show()
-    density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_density_2d_kde_{args.kde}.png')
+    density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_cam_around_per_kde_{args.kde}.png')
     # plt.draw()
     plt.savefig(density_2d_map_name, dpi=100)
 
