@@ -11,6 +11,21 @@ def normalize_vector(vector):
         return vector
     return vector / norm
 
+# def count_vectors_within_angle(vectors, target_vectors, angle_threshold):
+#     # Normalize the vectors
+#     # vectors_unit = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+#     # target_vectors_unit = target_vectors / np.linalg.norm(target_vectors, axis=1, keepdims=True)
+#     vectors_unit = vectors
+#     target_vectors_unit = target_vectors
+    
+#     # Calculate the angles (in radians) between the vectors
+#     angles = np.arccos(np.dot(vectors_unit, target_vectors_unit.T))
+    
+#     # Count the number of vectors that have an angle smaller than the given threshold
+#     counts = np.sum(angles < np.deg2rad(angle_threshold), axis=0)
+    
+#     return counts
+
 def count_vectors_within_angle(vectors, target_vectors, angle_threshold):
     # Normalize the vectors
     # vectors_unit = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
@@ -23,8 +38,15 @@ def count_vectors_within_angle(vectors, target_vectors, angle_threshold):
     
     # Count the number of vectors that have an angle smaller than the given threshold
     counts = np.sum(angles < np.deg2rad(angle_threshold), axis=0)
+
+    # Find the indices of vectors that have an angle smaller than the given threshold
+    a = angles < np.deg2rad(angle_threshold)
+    indices = []
+    for x in range(len(target_vectors)):
+        indices.append(np.where(a[:, x] == True)[0])
     
-    return counts
+    # import IPython; IPython.embed()
+    return counts, indices
 
 
 def density_function(points, bandwidth, normalize=False):

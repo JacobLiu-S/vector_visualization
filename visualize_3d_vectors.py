@@ -69,6 +69,7 @@ def get_cam_in_per(vectors):
     base_cam_rot = R.from_euler('zyx', [0, 0, 180], degrees=True).as_matrix()
     per_in_map = R.from_matrix([[0,0,1], [1,0,0], [0,1,0]]).as_matrix()
     output = []
+    euler_z_angles = []
     for v in tqdm(vectors):
         r = R.from_rotvec(v)
         rotmat = r.as_matrix()
@@ -77,7 +78,8 @@ def get_cam_in_per(vectors):
         x, y, z = R.from_matrix(cam_w_base).as_euler('yxz', degrees=True)
         cadi_coor = [np.cos(y)*np.cos(x), np.sin(y), np.cos(y)*np.sin(x)]
         output.append(np.linalg.inv(per_in_map) @ cadi_coor)
-    return np.vstack(output).reshape(-1, 3), z
+        euler_z_angles.append(z)
+    return np.vstack(output).reshape(-1, 3), np.array(euler_z_angles)
 
 
 def main():
@@ -89,7 +91,7 @@ def main():
     args = parser.parse_args()
     vectors = load_vectors(args.npz_path, samples=args.samples)
     print(f'You sampled {vectors.shape[0]} samples')
-    vectors, z = get_cam_in_per(vectors)
+    vectors, euler_z_angles = get_cam_in_per(vectors)
     # visualize_3d_vectors(vectors)
 
     # vectors = [[3, 4, 1], [1, 2, 2], [5, 5, 5]]  # List of vectors
@@ -140,7 +142,7 @@ def main():
 
     # Evaluate the density function on the grid of coordinates
     # density_values_2d = density_func_2d(lon_grid.flatten(), lat_grid.flatten(), args.kde)
-    density_values_2d = count_vectors_within_angle(vectors, query_points.reshape(resolution*resolution, 3), 1)
+    density_values_2d, indices = count_vectors_within_angle(vectors, query_points.reshape(resolution*resolution, 3), 1)
     print('densities 2d calculated')
 
     # Reshape the density values to match the grid shape
@@ -161,6 +163,49 @@ def main():
     density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_cam_around_per_grid_cnt.png')
     # plt.draw()
     plt.savefig(density_2d_map_name, dpi=100)
+
+
+    # plot z angles
+    z_angles_min = []
+    z_angles_max = []
+    z_angles_abs = []
+    for i in range(len(indices)):
+        # import IPython; IPython.embed(); exit()
+        try:
+            min_z, max_z = min(euler_z_angles[indices[i]]), max(euler_z_angles[indices[i]])
+            z_angles_min.append(min_z)
+            z_angles_max.append(max_z)
+            z_angles_abs.append(max(abs(euler_z_angles[indices[i]])))
+        except ValueError:
+            z_angles_min.append(0)
+            z_angles_max.append(0)
+            z_angles_abs.append(0)
+    
+    z_angles_min, z_angles_max, z_angles_abs = np.array(z_angles_min).reshape(resolution, resolution), np.array(z_angles_max).reshape(resolution, resolution), np.array(z_angles_abs).reshape(resolution, resolution)
+    plt.figure(figsize=(12, 6))
+    map = Basemap(projection='robin', lon_0=0, resolution='c')
+    colormap = map.pcolormesh(x, y, z_angles_min, cmap='viridis')
+    colorbar = map.colorbar(colormap, location='right', pad='5%', extend='both')
+    plt.title(f"Point z_angles_min on a Map -- {os.path.basename(args.npz_path).split('.')[0]}_cam_around_per_z_angles_min")
+    density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_cam_around_per_z_angles_min.png')
+    plt.savefig(density_2d_map_name, dpi=100)
+
+    plt.figure(figsize=(12, 6))
+    map = Basemap(projection='robin', lon_0=0, resolution='c')
+    colormap = map.pcolormesh(x, y, z_angles_max, cmap='viridis')
+    colorbar = map.colorbar(colormap, location='right', pad='5%', extend='both')
+    plt.title(f"Point z_angles_max on a Map -- {os.path.basename(args.npz_path).split('.')[0]}_cam_around_per_z_angles_max")
+    density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_cam_around_per_z_angles_max.png')
+    plt.savefig(density_2d_map_name, dpi=100)
+
+    plt.figure(figsize=(12, 6))
+    map = Basemap(projection='robin', lon_0=0, resolution='c')
+    colormap = map.pcolormesh(x, y, z_angles_abs, cmap='viridis')
+    colorbar = map.colorbar(colormap, location='right', pad='5%', extend='both')
+    plt.title(f"Point z_angles_abs on a Map -- {os.path.basename(args.npz_path).split('.')[0]}_cam_around_per_z_angles_abs")
+    density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_cam_around_per_z_angles_abs.png')
+    plt.savefig(density_2d_map_name, dpi=100)
+
 
 if __name__ == '__main__':
     main()
