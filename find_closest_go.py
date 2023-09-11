@@ -6,11 +6,15 @@ def find_closest_vectors(small_array, big_array, vector):
     small_rotations = np.apply_along_axis(rotation_matrix_from_vector, 1, small_array)
     big_rotations = np.apply_along_axis(rotation_matrix_from_vector, 1, big_array)
 
-    small_vectors = np.matmul(small_rotations, vector)
-    big_vectors = np.matmul(big_rotations, vector)
+    # small_vectors = np.matmul(small_rotations, vector)
+    # big_vectors = np.matmul(big_rotations, vector)
+    small_vectors = small_rotations
+    big_vectors = big_rotations
 
     tree = KDTree(big_vectors)
     distances, closest_indices = tree.query(small_vectors, k=1)
+    print(small_vectors)
+    print(big_vectors[closest_indices])
     # print(closest_indices)
     # print(distances)
     # for i in range(5):
@@ -19,8 +23,8 @@ def find_closest_vectors(small_array, big_array, vector):
 
 def rotation_matrix_from_vector(rotation_vector):
     r = R.from_rotvec(rotation_vector)
-    rotmat = r.as_matrix()
-    return rotmat
+    e_angles = r.as_euler('xyz', degrees=True)
+    return e_angles
 
 def angle_between_vectors(vector1, vector2):
     dot_product = np.dot(vector1, vector2)
