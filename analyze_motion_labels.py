@@ -35,7 +35,7 @@ def draw_labels(sorted_dict, dataset):
     prefix = dataset.split('_')[0]
     plt.savefig('imgs/' + prefix+'_motion_labels.png')
 
-def draw_both_bar(dict1, dict2):
+def draw_both_bar(dict1, dict2, draw_split=False):
     merged_dict = {}
 
     keys = set(list(dict1.keys()) + list(dict2.keys()))
@@ -49,37 +49,62 @@ def draw_both_bar(dict1, dict2):
     keys = merged_dict.keys()
     values1, values2 = zip(*merged_dict.values())
 
-    w = len(keys) // 10
-    fig, ax = plt.subplots(figsize=(w, 6))
+    if not draw_split:
+        w = len(keys) // 10
+        fig, ax = plt.subplots(figsize=(w, 20))
 
-    x = np.arange(len(keys))
-    # Plot the first segment of the bars representing values from dict1
-    ax.bar(x, values1, label='bedlam')
+        x = np.arange(len(keys))
+        # Plot the first segment of the bars representing values from dict1
+        ax.bar(x, values1, label='bedlam')
 
-    # Plot the second segment of the bars representing values from dict2
-    ax.bar(x, values2, label='synbody')
+        # Plot the second segment of the bars representing values from dict2
+        ax.bar(x, values2, bottom=values1, label='synbody')
 
 
-    plt.xlabel('Keys')
-    plt.ylabel('Values')
-    plt.title('Combined Bar Chart')
-    plt.legend()
+        plt.xlabel('Keys')
+        plt.ylabel('Values')
+        plt.title('Combined Bar Chart')
+        plt.legend()
 
-    plt.xticks(ticks=x, labels=keys, rotation=90, ha='center', fontsize=6)
-    plt.yticks(fontsize=6)
+        plt.xticks(ticks=x, labels=keys, rotation=90, ha='center', fontsize=6)
+        plt.yticks(fontsize=6)
 
-    plt.savefig('imgs/bedlam_synbody_motion_labels.png')
+        plt.savefig('imgs/bedlam_synbody_motion_labels.png')
+    else:
+        n = len(keys)
+        split = n // 3
+        keys_split = [list(keys)[i:i + split] for i in range(0, n, split)]
+        values1_split = [list(values1)[i:i + split] for i in range(0, n, split)]
+        values2_split = [list(values2)[i:i + split] for i in range(0, n, split)]
+
+        # fig, axs = plt.subplots(1, 3, figsize=(n//10, 20), sharey=True)
+        for i in range(3):
+            # fig, ax = plt.subplots(1, 3, figsize=(n // 30, 20))
+            fig, ax = plt.subplots(figsize=(n//10, 20))
+            # ax = axs[i]
+            ax.bar(range(len(keys_split[i])), values1_split[i], label='bedlam')
+            ax.bar(range(len(keys_split[i])), values2_split[i], bottom=values1_split[i], label='synbody')
+
+            ax.set_xlabel('Keys')
+            ax.set_ylabel('Values')
+            ax.set_title(f'Subplot {i+1}')
+
+            ax.set_xticks(range(len(keys_split[i])))
+            ax.set_xticklabels(keys_split[i], rotation=90, ha='center', fontsize=10)
+            ax.legend()
+            plt.savefig(f'imgs/bedlam_synbody_motion_labels_split_{i}.png')
 
 
 def main():
     parser = argparse.ArgumentParser(description='npz file path to be analyzed')
     parser.add_argument('--npz_path', help='the npz file to be analysed')
     parser.add_argument('--npz_path2', default=None, help='the npz file to be analysed')
+    parser.add_argument('--draw_split', action='store_true', help='the npz file to be analysed')
     args = parser.parse_args()
     if args.npz_path2:
         dict1 = analyze_motion_labels(np.load(args.npz_path))
         dict2 = analyze_motion_labels(np.load(args.npz_path2))
-        draw_both_bar(dict1, dict2)
+        draw_both_bar(dict1, dict2, args.draw_split)
     else:
         npfile = np.load(args.npz_path)
         sorted_dict = analyze_motion_labels(npfile)
