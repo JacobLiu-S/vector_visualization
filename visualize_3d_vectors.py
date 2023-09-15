@@ -10,6 +10,7 @@ from matplotlib.colors import LogNorm
 
 from density_calcuate import density_function, plot_density, count_vectors_within_angle
 from density_map_2d_version import density_function_2d
+from sample_points_on_sphere import fibonacci_sphere, cartesian_to_spherical, spherical_to_latlon
 
 
 def normalize_vector(vector):
@@ -130,20 +131,22 @@ def main():
     # map.drawcountries(linewidth=0)
 
     # Generate a grid of longitude and latitude coordinates
+    # resolution = 100
+    # lon = np.linspace(-180, 180, resolution)
+    # lat = np.linspace(-90, 90, resolution)
+    # lon_grid, lat_grid = np.meshgrid(lon, lat)
+
+    # lon_rad = np.radians(lon_grid)
+    # lat_rad = np.radians(lat_grid)
+    # # Convert longitude, latitude to Cartesian coordinates
+    # x = np.cos(lat_rad) * np.cos(lon_rad)
+    # y = np.cos(lat_rad) * np.sin(lon_rad)
+    # z = np.sin(lat_rad)
     resolution = 100
-    lon = np.linspace(-180, 180, resolution)
-    lat = np.linspace(-90, 90, resolution)
-    lon_grid, lat_grid = np.meshgrid(lon, lat)
-
-    lon_rad = np.radians(lon_grid)
-    lat_rad = np.radians(lat_grid)
-    # Convert longitude, latitude to Cartesian coordinates
-    x = np.cos(lat_rad) * np.cos(lon_rad)
-    y = np.cos(lat_rad) * np.sin(lon_rad)
-    z = np.sin(lat_rad)
-
+    num_points = resolution ** 2
+    query_points = fibonacci_sphere(num_points)
     # Concatenate x, y, and z coordinates into a single array
-    query_points = np.column_stack((x.flatten(), y.flatten(), z.flatten()))
+    # query_points = np.column_stack((x.flatten(), y.flatten(), z.flatten()))
 
     # Evaluate the density function on the grid of coordinates
     # density_values_2d = density_func_2d(lon_grid.flatten(), lat_grid.flatten(), args.kde)
@@ -154,7 +157,9 @@ def main():
     density_grid = density_values_2d.reshape((resolution, resolution))
 
     # Convert longitude and latitude to map projection coordinates
-    x, y = map(lon_grid, lat_grid)
+    spherical_coordinates = np.array([cartesian_to_spherical(x, y, z) for x, y, z in query_points])
+    latitudes_and_longitudes = np.array([spherical_to_latlon(r, theta, phi) for r, theta, phi in spherical_coordinates])
+    x, y = map(latitudes_and_longitudes[:, 1], latitudes_and_longitudes[:, 0])
 
     # Plot the density on the map
     plt.figure(figsize=(12, 6))
