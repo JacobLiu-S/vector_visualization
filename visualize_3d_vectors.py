@@ -68,6 +68,7 @@ def rotate_basis(vectors, basis=[0, 0, 1]):
 def get_cam_in_per(vectors):
     base_cam_rot = R.from_euler('zyx', [0, 0, 180], degrees=True).as_matrix()
     per_in_map = R.from_matrix([[0,0,1], [1,0,0], [0,1,0]]).as_matrix()
+    # rot_cam = R.from_euler('yxz', [y,x,0], degrees=True).as_matrix()
     output = []
     euler_z_angles = []
     for v in tqdm(vectors):
@@ -76,9 +77,11 @@ def get_cam_in_per(vectors):
         cam_in_body = np.linalg.inv(rotmat)
         cam_w_base = cam_in_body @ base_cam_rot
         y, x, z = R.from_matrix(cam_w_base).as_euler('yxz', degrees=True)
-        cadi_coor = [-np.cos(x)*np.sin(y), np.sin(x), np.cos(y)*np.cos(x)]
-        output.append(np.linalg.inv(per_in_map) @ cadi_coor)
-        # output.append(per_in_map @ cadi_coor)
+        rot_cam = R.from_euler('yxz', [y,x,0], degrees=True).as_matrix()
+        # cadi_coor = [-np.cos(x)*np.sin(y), np.sin(x), np.cos(y)*np.cos(x)]
+        cadi_coor = (rot_cam @ [[0],[0],[1]])
+        output.append((np.linalg.inv(per_in_map) @ cadi_coor).reshape(-1))
+        # output.append(cadi_coor)
         euler_z_angles.append(z)
     return np.vstack(output).reshape(-1, 3), np.array(euler_z_angles)
 
@@ -112,10 +115,11 @@ def main():
     # if args.cam_plot:
     #     densities = z
     # densities = density_func(x.flatten(), y.flatten(), z.flatten(), args.kde)
-    # densities = count_vectors_within_angle(vectors, np.column_stack((x.flatten(), y.flatten(), z.flatten())).reshape(resolution*resolution, 3), angle_threshold=1)
-    print('densities calculated')
-    # plot_density(densities, resolution, x, y, z)
+    # densities, _ = count_vectors_within_angle(vectors, np.column_stack((x.flatten(), y.flatten(), z.flatten())).reshape(resolution*resolution, 3), angle_threshold=1)
+    # print('densities calculated')
+    # plot_density(np.log10(densities), resolution, x, y, z)
 
+    # exit()
     # map density to 2d
     # density_func_2d = density_function_2d(vectors, bandwidth, True)
 
