@@ -75,9 +75,10 @@ def get_cam_in_per(vectors):
         rotmat = r.as_matrix()
         cam_in_body = np.linalg.inv(rotmat)
         cam_w_base = cam_in_body @ base_cam_rot
-        x, y, z = R.from_matrix(cam_w_base).as_euler('yxz', degrees=True)
-        cadi_coor = [np.cos(y)*np.cos(x), np.sin(y), np.cos(y)*np.sin(x)]
+        y, x, z = R.from_matrix(cam_w_base).as_euler('yxz', degrees=True)
+        cadi_coor = [-np.cos(x)*np.sin(y), np.sin(x), np.cos(y)*np.cos(x)]
         output.append(np.linalg.inv(per_in_map) @ cadi_coor)
+        # output.append(per_in_map @ cadi_coor)
         euler_z_angles.append(z)
     return np.vstack(output).reshape(-1, 3), np.array(euler_z_angles)
 
