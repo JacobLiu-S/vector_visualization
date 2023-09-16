@@ -46,6 +46,7 @@ def count_vectors_within_angle(vectors, target_vectors, angle_threshold):
         indices.append(np.where(a[:, x] == True)[0])
     
     # import IPython; IPython.embed()
+    counts += 1
     return counts, indices
 
 
@@ -95,6 +96,22 @@ def plot_density(density_values, resolution, x, y, z):
     sm.set_array(density_values)
     fig.colorbar(sm, label='Density')
 
+    plt.show()
+
+def plain_plot_density(points, density):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    scatter = ax.scatter(points[:, 0], points[:, 1], points[:, 2], c=density, cmap='jet')
+
+    colorbar = plt.colorbar(scatter, ax=ax)
+    colorbar.set_label('Density')
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+    plt.title('Points in 3D with Density')
     plt.show()
 
 def main():
