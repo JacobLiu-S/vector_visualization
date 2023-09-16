@@ -26,6 +26,12 @@ def normalize_vector(vector):
     
 #     return counts
 
+def adjust_densities(vectors, counts):
+    yy = vectors[:, 1]
+    for i in range(len(counts)):
+        counts[i] *= (1-yy[i]**2)
+    return counts
+
 def count_vectors_within_angle(vectors, target_vectors, angle_threshold):
     # Normalize the vectors
     # vectors_unit = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
@@ -46,6 +52,7 @@ def count_vectors_within_angle(vectors, target_vectors, angle_threshold):
         indices.append(np.where(a[:, x] == True)[0])
     
     # import IPython; IPython.embed()
+    counts = adjust_densities(vectors, counts)
     counts += 1
     return counts, indices
 

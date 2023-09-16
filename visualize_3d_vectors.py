@@ -81,7 +81,7 @@ def get_cam_in_per(vectors):
         y, x, z = R.from_matrix(cam_w_base).as_euler('yxz', degrees=True)
         rot_cam = R.from_euler('yxz', [y,x,0], degrees=True).as_matrix()
         # cadi_coor = [-np.cos(x)*np.sin(y), np.sin(x), np.cos(y)*np.cos(x)]
-        cadi_coor = (rot_cam @ [[0],[0],[1]])
+        cadi_coor = (rot_cam @ [[0],[0],[1]]) # In this way, higher latitude, higherdensity.
         output.append((np.linalg.inv(per_in_map) @ cadi_coor).reshape(-1))
         # output.append(cadi_coor)
         euler_z_angles.append(z)
