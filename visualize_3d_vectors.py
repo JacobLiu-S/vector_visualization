@@ -8,7 +8,7 @@ from scipy.stats import gaussian_kde
 from tqdm import tqdm
 from matplotlib.colors import LogNorm
 
-from density_calcuate import density_function, plot_density, count_vectors_within_angle
+from density_calcuate import density_function, plot_density, count_vectors_within_angle, plain_plot_density
 from density_map_2d_version import density_function_2d
 from sample_points_on_sphere import fibonacci_sphere, cartesian_to_spherical, spherical_to_latlon
 
@@ -113,14 +113,21 @@ def main():
     # y = np.outer(np.sin(u), np.sin(v))
     # z = np.outer(np.ones_like(u), np.cos(v))
 
+    resolution = 200
+    num_points = resolution ** 2
+    query_points = np.array(fibonacci_sphere(num_points))
+    x, y, z = query_points[:,0], query_points[:,1], query_points[:,2]
     # if args.cam_plot:
     #     densities = z
     # densities = density_func(x.flatten(), y.flatten(), z.flatten(), args.kde)
-    # densities, _ = count_vectors_within_angle(vectors, np.column_stack((x.flatten(), y.flatten(), z.flatten())).reshape(resolution*resolution, 3), angle_threshold=1)
-    # print('densities calculated')
+    densities, _ = count_vectors_within_angle(vectors, np.column_stack((x.flatten(), y.flatten(), z.flatten())).reshape(resolution*resolution, 3), angle_threshold=1)
+    print('densities calculated')
+    print(densities.shape)
+    # print(query_points.shape)
+    plain_plot_density(query_points, np.log10(densities) )
     # plot_density(np.log10(densities), resolution, x, y, z)
 
-    # exit()
+    exit()
     # map density to 2d
     # density_func_2d = density_function_2d(vectors, bandwidth, True)
 
@@ -131,22 +138,22 @@ def main():
     # map.drawcountries(linewidth=0)
 
     # Generate a grid of longitude and latitude coordinates
-    # resolution = 100
-    # lon = np.linspace(-180, 180, resolution)
-    # lat = np.linspace(-90, 90, resolution)
-    # lon_grid, lat_grid = np.meshgrid(lon, lat)
-
-    # lon_rad = np.radians(lon_grid)
-    # lat_rad = np.radians(lat_grid)
-    # # Convert longitude, latitude to Cartesian coordinates
-    # x = np.cos(lat_rad) * np.cos(lon_rad)
-    # y = np.cos(lat_rad) * np.sin(lon_rad)
-    # z = np.sin(lat_rad)
     resolution = 100
-    num_points = resolution ** 2
-    query_points = fibonacci_sphere(num_points)
+    lon = np.linspace(-180, 180, resolution)
+    lat = np.linspace(-90, 90, resolution)
+    lon_grid, lat_grid = np.meshgrid(lon, lat)
+
+    lon_rad = np.radians(lon_grid)
+    lat_rad = np.radians(lat_grid)
+    # Convert longitude, latitude to Cartesian coordinates
+    x = np.cos(lat_rad) * np.cos(lon_rad)
+    y = np.cos(lat_rad) * np.sin(lon_rad)
+    z = np.sin(lat_rad)
+    # resolution = 100
+    # num_points = resolution ** 2
+    # query_points = np.array(fibonacci_sphere(num_points))
     # Concatenate x, y, and z coordinates into a single array
-    # query_points = np.column_stack((x.flatten(), y.flatten(), z.flatten()))
+    query_points = np.column_stack((x.flatten(), y.flatten(), z.flatten()))
 
     # Evaluate the density function on the grid of coordinates
     # density_values_2d = density_func_2d(lon_grid.flatten(), lat_grid.flatten(), args.kde)
@@ -157,9 +164,9 @@ def main():
     density_grid = density_values_2d.reshape((resolution, resolution))
 
     # Convert longitude and latitude to map projection coordinates
-    spherical_coordinates = np.array([cartesian_to_spherical(x, y, z) for x, y, z in query_points])
-    latitudes_and_longitudes = np.array([spherical_to_latlon(r, theta, phi) for r, theta, phi in spherical_coordinates])
-    x, y = map(latitudes_and_longitudes[:, 1], latitudes_and_longitudes[:, 0])
+    # spherical_coordinates = np.array([cartesian_to_spherical(x, y, z) for x, y, z in query_points])
+    # latitudes_and_longitudes = np.array([spherical_to_latlon(r, theta, phi) for r, theta, phi in spherical_coordinates])
+    # x, y = map(*np.meshgrid(latitudes_and_longitudes[:, 1], latitudes_and_longitudes[:, 0]))
 
     # Plot the density on the map
     plt.figure(figsize=(12, 6))

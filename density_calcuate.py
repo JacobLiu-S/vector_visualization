@@ -78,7 +78,9 @@ def plot_density(density_values, resolution, x, y, z):
     # Plot the density on the sphere
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+    import IPython; IPython.embed()
     surface = ax.plot_surface(x, y, z, facecolors=plt.cm.viridis(density_grid), rstride=1, cstride=1)
+    # surface = ax.plot_trisurf(x, y, z, facecolors=plt.cm.viridis(density_grid), rstride=1, cstride=1)
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -96,6 +98,23 @@ def plot_density(density_values, resolution, x, y, z):
     fig.colorbar(sm, label='Density')
 
     plt.show()
+
+def plain_plot_density(points, density):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    scatter = ax.scatter(points[:, 0], points[:, 1], points[:, 2], c=density, cmap='jet')
+
+    colorbar = plt.colorbar(scatter, ax=ax)
+    colorbar.set_label('Density')
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+    plt.title('Points in 3D with Density')
+    plt.show()
+
 
 def main():
 # Example usage
