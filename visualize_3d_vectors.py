@@ -7,6 +7,7 @@ from scipy.spatial.transform import Rotation as R
 from scipy.stats import gaussian_kde
 from tqdm import tqdm
 from matplotlib.colors import LogNorm
+import cartopy.crs as ccrs
 
 from density_calcuate import density_function, plot_density, count_vectors_within_angle, plain_plot_density
 from density_map_2d_version import density_function_2d
@@ -80,7 +81,7 @@ def get_cam_in_per(vectors):
         y, x, z = R.from_matrix(cam_w_base).as_euler('yxz', degrees=True)
         rot_cam = R.from_euler('yxz', [y,x,0], degrees=True).as_matrix()
         # cadi_coor = [-np.cos(x)*np.sin(y), np.sin(x), np.cos(y)*np.cos(x)]
-        cadi_coor = (rot_cam @ [[0],[0],[1]])
+        cadi_coor = (rot_cam @ [[0],[0],[1]]) # In this way, higher latitude, higherdensity.
         output.append((np.linalg.inv(per_in_map) @ cadi_coor).reshape(-1))
         # output.append(cadi_coor)
         euler_z_angles.append(z)
@@ -132,8 +133,8 @@ def main():
     # density_func_2d = density_function_2d(vectors, bandwidth, True)
 
     # Define the map projection
-    map = Basemap(projection='robin', lon_0=0, resolution='c')
-
+    # map = Basemap(projection='robin', lon_0=0, resolution='c')
+    # map = Basemap(projection='ortho', lat_0=0, lon_0=0)
     # Disable drawing country boundaries
     # map.drawcountries(linewidth=0)
 
@@ -150,8 +151,20 @@ def main():
     y = np.cos(lat_rad) * np.sin(lon_rad)
     z = np.sin(lat_rad)
     # resolution = 100
-    # num_points = resolution ** 2
-    # query_points = np.array(fibonacci_sphere(num_points))
+    # lon = np.linspace(-180, 180, resolution)
+    # lat = np.linspace(-90, 90, resolution)
+    # lon_grid, lat_grid = np.meshgrid(lon, lat)
+
+    # lon_rad = np.radians(lon_grid)
+    # lat_rad = np.radians(lat_grid)
+    # import IPython; IPython.embed(); exit()
+    # # Convert longitude, latitude to Cartesian coordinates
+    # x = np.cos(lat_rad) * np.cos(lon_rad)
+    # y = np.cos(lat_rad) * np.sin(lon_rad)
+    # z = np.sin(lat_rad)
+    resolution = 100
+    num_points = resolution ** 2
+    query_points = np.array(fibonacci_sphere(num_points))
     # Concatenate x, y, and z coordinates into a single array
     query_points = np.column_stack((x.flatten(), y.flatten(), z.flatten()))
 
@@ -159,21 +172,37 @@ def main():
     # density_values_2d = density_func_2d(lon_grid.flatten(), lat_grid.flatten(), args.kde)
     density_values_2d, indices = count_vectors_within_angle(vectors, query_points.reshape(resolution*resolution, 3), 1)
     print('densities 2d calculated')
-
+    # print(density_values.shape)
     # Reshape the density values to match the grid shape
-    density_grid = density_values_2d.reshape((resolution, resolution))
+    density_grid = density_values_2d.reshape((resolution, resolution)).reshape(-1)
 
     # Convert longitude and latitude to map projection coordinates
-    # spherical_coordinates = np.array([cartesian_to_spherical(x, y, z) for x, y, z in query_points])
-    # latitudes_and_longitudes = np.array([spherical_to_latlon(r, theta, phi) for r, theta, phi in spherical_coordinates])
-    # x, y = map(*np.meshgrid(latitudes_and_longitudes[:, 1], latitudes_and_longitudes[:, 0]))
+    spherical_coordinates = np.array([cartesian_to_spherical(x, y, z) for x, y, z in query_points])
+    latitudes_and_longitudes = np.array([spherical_to_latlon(r, theta, phi) for r, theta, phi in spherical_coordinates])
+    plt.figure(figsize=(12, 6))
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    # ax = plt.axes(projection=ccrs.Mollweide())
+    # ax = plt.axes(projection=ccrs.Robinson())
+    
+    # Mollweide
+    plt.scatter(latitudes_and_longitudes[:, 1], latitudes_and_longitudes[:, 0], s=5, c=np.log10(density_grid), cmap='viridis', transform=ccrs.Geodetic())
+    plt.colorbar(location='right', extend='both')
+
+    # plt.savefig('test.png')
+    # exit()
+    # x, y = map(latitudes_and_longitudes[:, 1], latitudes_and_longitudes[:, 0])
+    # lon_grid, lat_grid = latitudes_and_longitudes[:, 1].reshape(100, 100), latitudes_and_longitudes[:, 0].reshape(100, 100)
+    # print(lon_grid.shape)
+    # x, y = map(lon_grid, lat_grid)
+    # x, y = map(query_points[:, 2], query_points[:, 1])
 
     # Plot the density on the map
-    plt.figure(figsize=(12, 6))
+    # plt.figure(figsize=(12, 6))
     # map.contourf(x, y, density_grid, cmap='viridis')
     # map.colorbar(label='Density')
-    colormap = map.pcolormesh(x, y, np.log10(density_grid), cmap='viridis')
-    colorbar = map.colorbar(colormap, location='right', pad='5%', extend='both')
+    # colormap = map.pcolormesh(x, y, np.log10(density_grid), cmap='viridis')
+    # colorbar = map.colorbar(colormap, location='right', pad='5%', extend='both')
+    # map.scatter(x, y, s=5, c=density_grid, cmap='jet', marker='o')
 
     plt.title(f"Point Density on a Map -- {os.path.basename(args.npz_path).split('.')[0]}_cam_around_per_grid_cnt")
     # plt.show()
@@ -200,25 +229,34 @@ def main():
     
     z_angles_min, z_angles_max, z_angles_abs = np.array(z_angles_min).reshape(resolution, resolution), np.array(z_angles_max).reshape(resolution, resolution), np.array(z_angles_abs).reshape(resolution, resolution)
     plt.figure(figsize=(12, 6))
-    map = Basemap(projection='robin', lon_0=0, resolution='c')
-    colormap = map.pcolormesh(x, y, z_angles_min, cmap='viridis')
-    colorbar = map.colorbar(colormap, location='right', pad='5%', extend='both')
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    plt.scatter(latitudes_and_longitudes[:, 1], latitudes_and_longitudes[:, 0], s=5, c=z_angles_min, cmap='viridis', transform=ccrs.Geodetic())
+    plt.colorbar(location='right', extend='both')
+    # map = Basemap(projection='robin', lon_0=0, resolution='c')
+    # colormap = map.pcolormesh(x, y, z_angles_min, cmap='viridis')
+    # colorbar = map.colorbar(colormap, location='right', pad='5%', extend='both')
     plt.title(f"Point z_angles_min on a Map -- {os.path.basename(args.npz_path).split('.')[0]}_cam_around_per_z_angles_min")
     density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_cam_around_per_z_angles_min.png')
     plt.savefig(density_2d_map_name, dpi=100)
 
     plt.figure(figsize=(12, 6))
-    map = Basemap(projection='robin', lon_0=0, resolution='c')
-    colormap = map.pcolormesh(x, y, z_angles_max, cmap='viridis')
-    colorbar = map.colorbar(colormap, location='right', pad='5%', extend='both')
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    plt.scatter(latitudes_and_longitudes[:, 1], latitudes_and_longitudes[:, 0], s=5, c=z_angles_max, cmap='viridis', transform=ccrs.Geodetic())
+    plt.colorbar(location='right', extend='both')
+    # map = Basemap(projection='robin', lon_0=0, resolution='c')
+    # colormap = map.pcolormesh(x, y, z_angles_max, cmap='viridis')
+    # colorbar = map.colorbar(colormap, location='right', pad='5%', extend='both')
     plt.title(f"Point z_angles_max on a Map -- {os.path.basename(args.npz_path).split('.')[0]}_cam_around_per_z_angles_max")
     density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_cam_around_per_z_angles_max.png')
     plt.savefig(density_2d_map_name, dpi=100)
 
     plt.figure(figsize=(12, 6))
-    map = Basemap(projection='robin', lon_0=0, resolution='c')
-    colormap = map.pcolormesh(x, y, z_angles_abs, cmap='viridis')
-    colorbar = map.colorbar(colormap, location='right', pad='5%', extend='both')
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    plt.scatter(latitudes_and_longitudes[:, 1], latitudes_and_longitudes[:, 0], s=5, c=z_angles_abs, cmap='viridis', transform=ccrs.Geodetic())
+    plt.colorbar(location='right', extend='both')
+    # map = Basemap(projection='robin', lon_0=0, resolution='c')
+    # colormap = map.pcolormesh(x, y, z_angles_abs, cmap='viridis')
+    # colorbar = map.colorbar(colormap, location='right', pad='5%', extend='both')
     plt.title(f"Point z_angles_abs on a Map -- {os.path.basename(args.npz_path).split('.')[0]}_cam_around_per_z_angles_abs")
     density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_cam_around_per_z_angles_abs.png')
     plt.savefig(density_2d_map_name, dpi=100)

@@ -10,7 +10,6 @@ def normalize_vector(vector):
     if norm == 0:
         return vector
     return vector / norm
-
 # def count_vectors_within_angle(vectors, target_vectors, angle_threshold):
 #     # Normalize the vectors
 #     # vectors_unit = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
@@ -25,6 +24,12 @@ def normalize_vector(vector):
 #     counts = np.sum(angles < np.deg2rad(angle_threshold), axis=0)
     
 #     return counts
+
+def adjust_densities(vectors, counts):
+    yy = vectors[:, 1]
+    for i in range(len(counts)):
+        counts[i] *= (1-yy[i]**2)
+    return counts
 
 def count_vectors_within_angle(vectors, target_vectors, angle_threshold):
     # Normalize the vectors
@@ -46,6 +51,8 @@ def count_vectors_within_angle(vectors, target_vectors, angle_threshold):
         indices.append(np.where(a[:, x] == True)[0])
     
     # import IPython; IPython.embed()
+    counts = adjust_densities(vectors, counts)
+    counts += 1
     return counts, indices
 
 
@@ -97,6 +104,22 @@ def plot_density(density_values, resolution, x, y, z):
     sm.set_array(density_values)
     fig.colorbar(sm, label='Density')
 
+    plt.show()
+
+def plain_plot_density(points, density):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    scatter = ax.scatter(points[:, 0], points[:, 1], points[:, 2], c=density, cmap='jet')
+
+    colorbar = plt.colorbar(scatter, ax=ax)
+    colorbar.set_label('Density')
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+    plt.title('Points in 3D with Density')
     plt.show()
 
 def plain_plot_density(points, density):
