@@ -8,7 +8,8 @@ from scipy.stats import gaussian_kde
 from tqdm import tqdm
 from matplotlib.colors import LogNorm
 import cartopy.crs as ccrs
-
+from collections import defaultdict
+import math
 from density_calcuate import density_function, plot_density, count_vectors_within_angle
 from density_map_2d_version import density_function_2d
 from sample_points_on_sphere import fibonacci_sphere, cartesian_to_spherical, spherical_to_latlon
@@ -54,9 +55,12 @@ def load_vectors(npzpath, samples=1000):
     # for mmhuman3d human data
     smpl_global_orient = npfile['smpl'].item()['global_orient']
 
+    if samples > smpl_global_orient.shape[0]:
+        return smpl_global_orient
     np.random.seed(0)
     sample_idx = np.random.choice(len(smpl_global_orient), samples, replace=False)
 
+    # import IPython; IPython.embed();exit()
     return smpl_global_orient.reshape(-1, 3)[sample_idx]
 
 def rotate_basis(vectors, basis=[0, 0, 1]):
@@ -67,25 +71,169 @@ def rotate_basis(vectors, basis=[0, 0, 1]):
         end_vectors.append(rotmat @ basis)
     return np.vstack(end_vectors).reshape(-1, 3)
 
-def get_cam_in_per(vectors):
+def calculate_elevation_angle(vector, plane_normal):
+    # Normalize the vector and plane normal
+    vector = np.array(vector) / np.linalg.norm(vector)
+    plane_normal = np.array(plane_normal) / np.linalg.norm(plane_normal)
+    
+    # Calculate the dot product between the vector and plane normal
+    dot_product = np.dot(vector, plane_normal)
+    
+    # Calculate the angle using the arccosine of the dot product
+    angle = np.arccos(dot_product)
+    
+    # Convert the angle from radians to degrees
+    angle_degrees = np.degrees(angle)
+    
+    return angle_degrees - 90
+
+def calculate_z_rotation_angle(vector):
+    angle_y = np.degrees(np.arccos(np.dot(vector, [0, 1, 0])))
+    angle_x = np.degrees(np.arccos(np.dot(vector, [1, 0, 0])))
+    if 180 > angle_y > 90 and 90 > angle_x > 0:
+        return angle_x
+    if 180 > angle_y > 90 and 180 > angle_x > 90:
+        print(True)
+        return angle_x
+    if 90 > angle_y > 0 and 180 > angle_x > 90:
+        print(True)
+        return - angle_y - 90
+    if 90 > angle_y > 0 and 90 > angle_x > 0:
+        return - angle_y
+# def calculate_azimuth_angle(vector1, vector2):
+#     angle = np.degrees(np.arccos(np.dot(vector1, vector2)))
+#     if vector1[0] < 0:
+#         angle = -angle
+#     return angle
+def angle_with_vertical(vector):
+    vector2 = np.array([0, -1])  # 给定向量 [0, 1]
+    # angle_rad = np.arctan2(np.cross(reference_vector, vector), np.dot(reference_vector, vector))
+    # angle_deg = np.degrees(angle_rad)
+    vector = normalize_vector(vector)
+    # from left to right coord
+    vector = [vector[0], -vector[1]]
+    angle = np.degrees(np.arccos(np.dot(vector, vector2)))
+    if vector[0] > 0:
+        return -angle
+    return angle
+
+
+def calculate_density_count(angle_list):
+    min_angle = math.floor(min(angle_list))
+    max_angle = math.ceil(max(angle_list))
+    # max_angle = max(int(max(angle_list)) + 1, 90)
+    # angle_list_positive = [int(i + 90) for i in angle_list]
+    angle_list_unique = [math.floor(x) for x in angle_list]
+    # Divide the range between the minimum and maximum values into 1-degree intervals
+    num_intervals = list(range(min_angle, max_angle))
+    print(min_angle, max_angle)
+    
+    # Initialize the count for each interval to 0
+    interval_counts = {}
+    for  i in num_intervals:
+        interval_counts[i] = 0
+    for angle in angle_list:
+        interval_counts[math.floor(angle)] += 1
+    return interval_counts
+
+def get_elevation_angle(vectors):
+    angles = []
+    for v in tqdm(vectors):
+        r = R.from_rotvec(v)
+        rotmat = r.as_matrix()
+        cam_in_body = np.linalg.inv(rotmat)
+        cam_x, cam_y, cam_z = cam_in_body[:, 0], cam_in_body[:, 1], cam_in_body[:, 2]
+        elevation_angle = calculate_elevation_angle(cam_z, [0,1,0])
+        angles.append(elevation_angle)
+    return angles
+
+def get_azimuth_angles(vectors):
+    plt.figure(figsize=(12, 6))
+    # cnt = 0
+    angles = []
+    for v in tqdm(vectors):
+        r = R.from_rotvec(v)
+        rotmat = r.as_matrix()
+        cam_in_body = np.linalg.inv(rotmat)
+        cam_x, cam_y, cam_z = cam_in_body[:, 0], cam_in_body[:, 1], cam_in_body[:, 2]
+        cam_projection = cam_z[[0,2]]
+        cam_projection = normalize_vector(cam_projection)
+        # plt.plot([0, cam_projection[0]], [0, cam_projection[1]])
+        angle = angle_with_vertical([-cam_projection[0], -cam_projection[1]])
+        angles.append(angle)
+        # if cnt % 50 == 0:
+        #     plt.text(cam_projection[0], cam_projection[1], str(angle))
+        # cnt += 1
+    # densities = calculate_density_count(angles)
+    # xx = sorted(densities.keys())
+    # y = [densities[i] for i in xx]
+    # plt.figure(figsize=(12, 6))
+    # plt.plot(xx, y)
+    # plt.savefig('debug_azimuth_angle.png')
+    return angles
+
+def get_z_rotation_angles(vectors):
+    angles = []
+    for v in tqdm(vectors):
+        r = R.from_rotvec(v)
+        rotmat = r.as_matrix()
+        cam_in_body = np.linalg.inv(rotmat)
+        cam_x, cam_y, cam_z = cam_in_body[:, 0], cam_in_body[:, 1], cam_in_body[:, 2]
+        angle = np.degrees(np.arccos(np.dot(cam_x, [0, 1, 0]))) - 90
+        angles.append(angle)
+    return angles
+
+def vis_follow_gta(vectors, option):
+    if option == 1:
+        return get_elevation_angle(vectors)
+    elif option == 2:
+        return get_azimuth_angles(vectors)
+    elif option == 3:
+        return get_z_rotation_angles(vectors)
+
+
+def get_cam_in_per(vectors, option=1):
+    """option = 1: elevation angle; 2: azimuth angle; 3: camara yz plane with z body rotation angle
+    """
     base_cam_rot = R.from_euler('zyx', [0, 0, 180], degrees=True).as_matrix()
     per_in_map = R.from_matrix([[0,0,1], [1,0,0], [0,1,0]]).as_matrix()
     # rot_cam = R.from_euler('yxz', [y,x,0], degrees=True).as_matrix()
     output = []
     euler_z_angles = []
+    elevation_angle_ = []
     for v in tqdm(vectors):
         r = R.from_rotvec(v)
         rotmat = r.as_matrix()
         cam_in_body = np.linalg.inv(rotmat)
+        # print(cam_in_body)
+        # import IPython; IPython.embed();exit()
+        # exit()
+        cam_x, cam_y, cam_z = cam_in_body[:, 0], cam_in_body[:, 1], cam_in_body[:, 2]
+        # if option=2:
+        # import IPython; IPython.embed();exit()
+        if option == 1:
+            elevation_angle = calculate_angle(cam_z, [0,1,0])
+            elevation_angle_.append(elevation_angle)
+        elif option == 2:
+            # v1 = np.cross(cam_z, [0,1,0])
+            cam_projection = cam_z[[0,2]]
+            elevation_angle = angle_with_vertical([-cam_projection[0], -cam_projection[1]])
+            # import IPython; IPython.embed();exit()
+            elevation_angle_.append(elevation_angle)
+        elif option == 3:
+            elevation_angle = calculate_angle(cam_x, [0,1,0])
+            elevation_angle_.append(elevation_angle)
+
         cam_w_base = cam_in_body @ base_cam_rot
         y, x, z = R.from_matrix(cam_w_base).as_euler('yxz', degrees=True)
         rot_cam = R.from_euler('yxz', [y,x,0], degrees=True).as_matrix()
+
         # cadi_coor = [-np.cos(x)*np.sin(y), np.sin(x), np.cos(y)*np.cos(x)]
         cadi_coor = (rot_cam @ [[0],[0],[1]]) # In this way, higher latitude, higherdensity.
         output.append((np.linalg.inv(per_in_map) @ cadi_coor).reshape(-1))
         # output.append(cadi_coor)
         euler_z_angles.append(z)
-    return np.vstack(output).reshape(-1, 3), np.array(euler_z_angles)
+    return np.vstack(output).reshape(-1, 3), np.array(euler_z_angles), np.array(elevation_angle_)
 
 
 def main():
@@ -96,8 +244,27 @@ def main():
     parser.add_argument('--cam_plot', action='store_true', help='use KDE estimate to draw ')
     args = parser.parse_args()
     vectors = load_vectors(args.npz_path, samples=args.samples)
+    # get_azimuth_angles(vectors)
+    # exit()
+    # import IPython; IPython.embed(); exit()
     print(f'You sampled {vectors.shape[0]} samples')
-    vectors, euler_z_angles = get_cam_in_per(vectors)
+    for i in range(1, 4):
+        # vectors, euler_z_angles, elevation_angles = get_cam_in_per(vectors, i)
+        angles = vis_follow_gta(vectors, i)
+        densities = calculate_density_count(angles)
+        # import IPython; IPython.embed();exit()
+        xx = sorted(densities.keys())
+        y = [densities[i] for i in xx]
+        plt.figure(figsize=(12, 6))
+        plt.plot(xx, y)
+        img_prefix = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0])
+        if i == 1:
+            plt.savefig(img_prefix + '_elevation_angle.png')
+        elif i == 2:
+            plt.savefig(img_prefix + '_azimuth_angle.png')
+        elif i == 3:
+            plt.savefig(img_prefix + '_z_rotation_angle.png')
+    exit()
     # visualize_3d_vectors(vectors)
 
     # vectors = [[3, 4, 1], [1, 2, 2], [5, 5, 5]]  # List of vectors
@@ -188,10 +355,11 @@ def main():
 
     plt.title(f"Point Density on a Map -- {os.path.basename(args.npz_path).split('.')[0]}_cam_around_per_grid_cnt")
     # plt.show()
-    density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_cam_around_per_grid_cnt.png')
+    density_2d_map_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0] + f'_cam_around_per_grid_cnt_try1.png')
     # plt.draw()
     plt.savefig(density_2d_map_name, dpi=100)
 
+    # exit()
 
     # plot z angles
     z_angles_min = []
