@@ -10,7 +10,6 @@ def normalize_vector(vector):
     if norm == 0:
         return vector
     return vector / norm
-
 # def count_vectors_within_angle(vectors, target_vectors, angle_threshold):
 #     # Normalize the vectors
 #     # vectors_unit = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
@@ -86,7 +85,9 @@ def plot_density(density_values, resolution, x, y, z):
     # Plot the density on the sphere
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+    import IPython; IPython.embed()
     surface = ax.plot_surface(x, y, z, facecolors=plt.cm.viridis(density_grid), rstride=1, cstride=1)
+    # surface = ax.plot_trisurf(x, y, z, facecolors=plt.cm.viridis(density_grid), rstride=1, cstride=1)
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -120,6 +121,23 @@ def plain_plot_density(points, density):
 
     plt.title('Points in 3D with Density')
     plt.show()
+
+def plain_plot_density(points, density):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    scatter = ax.scatter(points[:, 0], points[:, 1], points[:, 2], c=density, cmap='jet')
+
+    colorbar = plt.colorbar(scatter, ax=ax)
+    colorbar.set_label('Density')
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+    plt.title('Points in 3D with Density')
+    plt.show()
+
 
 def main():
 # Example usage
