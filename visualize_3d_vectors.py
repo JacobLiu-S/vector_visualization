@@ -235,6 +235,30 @@ def get_cam_in_per(vectors, option=1):
         euler_z_angles.append(z)
     return np.vstack(output).reshape(-1, 3), np.array(euler_z_angles), np.array(elevation_angle_)
 
+def spherical_to_cartesian(longitude, latitude):
+    x = math.cos(longitude) * math.cos(latitude)
+    y = math.sin(longitude) * math.cos(latitude) 
+    z = math.sin(latitude)
+    
+    return [x, y, z]
+
+def plot_cam_pos(vectors, out_path):
+    elevation_angles = vis_follow_gta(vectors, 1)
+    azimuth_angles = vis_follow_gta(vectors, 2)
+
+    per_in_map = R.from_matrix([[0,0,1], [1,0,0], [0,1,0]]).as_matrix()
+    output = []
+    for lat, lon in zip(elevation_angles, azimuth_angles):
+        output.append([lon, lat])
+    pos = np.vstack(output).reshape(-1, 2)
+
+    plt.figure(figsize=(12, 6))
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    plt.scatter(pos[:, 0], pos[:, 1], s=1, c='navy', transform=ccrs.Geodetic())
+
+    plt.savefig(out_path, dpi=100)
+
+
 
 def main():
     parser = argparse.ArgumentParser(description='npz file path to be analyzed')
@@ -248,6 +272,9 @@ def main():
     # exit()
     # import IPython; IPython.embed(); exit()
     print(f'You sampled {vectors.shape[0]} samples')
+    img_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0]) + '_global_distributions.png'
+    plot_cam_pos(vectors, img_name)
+    exit()
     for i in range(1, 4):
         # vectors, euler_z_angles, elevation_angles = get_cam_in_per(vectors, i)
         angles = vis_follow_gta(vectors, i)

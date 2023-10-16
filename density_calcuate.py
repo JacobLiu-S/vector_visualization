@@ -40,6 +40,7 @@ def count_vectors_within_angle(vectors, target_vectors, angle_threshold):
     
     # Calculate the angles (in radians) between the vectors
     angles = np.arccos(np.dot(vectors_unit, target_vectors_unit.T))
+    # import IPython; IPython.embed();exit()
     
     # Count the number of vectors that have an angle smaller than the given threshold
     counts = np.sum(angles < np.deg2rad(angle_threshold), axis=0)
@@ -50,9 +51,9 @@ def count_vectors_within_angle(vectors, target_vectors, angle_threshold):
     for x in range(len(target_vectors)):
         indices.append(np.where(a[:, x] == True)[0])
     
-    # import IPython; IPython.embed()
-    counts = adjust_densities(vectors, counts)
-    counts += 1
+    import IPython; IPython.embed(); exit()
+    # counts = adjust_densities(vectors, counts)
+    # counts += 1
     return counts, indices
 
 
