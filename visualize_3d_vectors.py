@@ -257,6 +257,8 @@ def main():
         y = [densities[i] for i in xx]
         plt.figure(figsize=(12, 6))
         plt.plot(xx, y)
+        plt.xlabel('angle in degrees')
+        plt.ylabel('# instances')
         img_prefix = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0])
         if i == 1:
             plt.savefig(img_prefix + '_elevation_angle.png')
