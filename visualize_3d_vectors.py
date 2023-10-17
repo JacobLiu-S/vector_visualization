@@ -266,7 +266,7 @@ def plot_cam_z(elevation_angles, azimuth_angles, z_angles, out_path):
 
     plt.figure(figsize=(12, 6))
     ax = plt.axes(projection=ccrs.PlateCarree())
-    plt.scatter(pos[:, 0], pos[:, 1], s=1, c=pos[:, 2], cmap='viridis', transform=ccrs.Geodetic())
+    plt.scatter(pos[:, 0], pos[:, 1], s=2, c=pos[:, 2], cmap='plasma', transform=ccrs.Geodetic())
     plt.colorbar(location='right', extend='both')
     plt.title(f"Camera Z Angles on a Map -- {os.path.basename(out_path)[:-4]}")
     plt.savefig(out_path, dpi=100)
