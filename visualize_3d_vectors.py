@@ -258,7 +258,31 @@ def plot_cam_pos(vectors, out_path):
 
     plt.savefig(out_path, dpi=100)
 
+def plot_cam_density(vectors, out_path):
+    elevation_angles = vis_follow_gta(vectors, 1)
+    azimuth_angles = vis_follow_gta(vectors, 2)
 
+    per_in_map = R.from_matrix([[0,0,1], [1,0,0], [0,1,0]]).as_matrix()
+    output = []
+    for lat, lon in zip(elevation_angles, azimuth_angles):
+        output.append([lon, lat])
+    pos = np.vstack(output).reshape(-1, 2)
+
+    plt.figure(figsize=(12, 6))
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    resolution = 200
+    num_points = resolution ** 2
+    query_points = np.array(fibonacci_sphere(num_points))
+    x, y, z = query_points[:,0], query_points[:,1], query_points[:,2]
+
+    spherical_coordinates = np.array([cartesian_to_spherical(x, y, z) for x, y, z in query_points])
+    latitudes_and_longitudes = np.array([spherical_to_latlon(r, theta, phi) for r, theta, phi in spherical_coordinates])
+
+    densities, _ = count_vectors_within_angle(pos, np.column_stack((x.flatten(), y.flatten(), z.flatten())).reshape(resolution*resolution, 3), angle_threshold=1)
+    
+    plt.scatter(pos[:, 0], pos[:, 1], s=1, c='navy', transform=ccrs.Geodetic())
+
+    plt.savefig(out_path, dpi=100)
 
 def main():
     parser = argparse.ArgumentParser(description='npz file path to be analyzed')
