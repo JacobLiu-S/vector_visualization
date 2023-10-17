@@ -242,11 +242,11 @@ def spherical_to_cartesian(longitude, latitude):
     
     return [x, y, z]
 
-def plot_cam_pos(vectors, out_path):
-    elevation_angles = vis_follow_gta(vectors, 1)
-    azimuth_angles = vis_follow_gta(vectors, 2)
+def plot_cam_pos(elevation_angles, azimuth_angles, out_path):
+    # elevation_angles = vis_follow_gta(vectors, 1)
+    # azimuth_angles = vis_follow_gta(vectors, 2)
 
-    per_in_map = R.from_matrix([[0,0,1], [1,0,0], [0,1,0]]).as_matrix()
+    # per_in_map = R.from_matrix([[0,0,1], [1,0,0], [0,1,0]]).as_matrix()
     output = []
     for lat, lon in zip(elevation_angles, azimuth_angles):
         output.append([lon, lat])
@@ -255,7 +255,20 @@ def plot_cam_pos(vectors, out_path):
     plt.figure(figsize=(12, 6))
     ax = plt.axes(projection=ccrs.PlateCarree())
     plt.scatter(pos[:, 0], pos[:, 1], s=1, c='navy', transform=ccrs.Geodetic())
+    plt.title(f"Camera Position on a Map -- {os.path.basename(out_path)[:-4]}")
+    plt.savefig(out_path, dpi=100)
 
+def plot_cam_z(elevation_angles, azimuth_angles, z_angles, out_path):
+    output = []
+    for lat, lon, z in zip(elevation_angles, azimuth_angles, z_angles):
+        output.append([lon, lat, z])
+    pos = np.vstack(output).reshape(-1, 3)
+
+    plt.figure(figsize=(12, 6))
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    plt.scatter(pos[:, 0], pos[:, 1], s=1, c=pos[:, 2], cmap='viridis', transform=ccrs.Geodetic())
+    plt.colorbar(location='right', extend='both')
+    plt.title(f"Camera Z Angles on a Map -- {os.path.basename(out_path)[:-4]}")
     plt.savefig(out_path, dpi=100)
 
 def plot_cam_density(vectors, out_path):
@@ -296,8 +309,13 @@ def main():
     # exit()
     # import IPython; IPython.embed(); exit()
     print(f'You sampled {vectors.shape[0]} samples')
-    img_name = os.path.join('examples', os.path.basename(args.npz_path).split('.')[0]) + '_global_distributions.png'
-    plot_cam_pos(vectors, img_name)
+    img_name = os.path.join('examples', os.path.basename(args.npz_path)[:-4]) + '_global_distributions.png'
+    elevation_angles = vis_follow_gta(vectors, 1)
+    azimuth_angles = vis_follow_gta(vectors, 2)
+    z_angles = vis_follow_gta(vectors, 3)
+    # plot_cam_pos(elevation_angles, azimuth_angles, img_name)
+    img_name1 = os.path.join('examples', os.path.basename(args.npz_path)[:-4]) + '_global_rotations.png'
+    plot_cam_z(elevation_angles, azimuth_angles, z_angles, img_name1)
     exit()
     for i in range(1, 4):
         # vectors, euler_z_angles, elevation_angles = get_cam_in_per(vectors, i)
